@@ -87,8 +87,8 @@ Puedes expandir el sistema fácilmente para agregar más entradas o estilos visu
 #### Uso
 
  ```
-git clone https://github.com/tu_usuario/hud_overlay.git
-cd hud_overlay
+https://github.com/Cat-Not-Furry/hud_owerlay.git
+cd hud_owerlay
 python3 main.py
 ```
 
