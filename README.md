@@ -55,8 +55,8 @@ hud_overlay/<br>
 ├── joystick_bindings.json<br>
 ├── libs/<br>
 │   ├── pygame/<br>
-│   └── threading/<br>
-|   └── platform/<br>
+│   ├── threading/<br>
+│   └── platform/<br>
 └── icons/<br>
     ├── lp.png<br>
     ├── mp.png<br>
