@@ -21,7 +21,6 @@ Se corrigio el error de main.py (no cargaba key_bindings.json), ya no es necesar
 ## (Julio 2025)
 ### Cosas arregadas
 Se adapto el codigo para ser compatible con sistemas basados en MS-DOS como los sistemas Windows desde Windows8.1 o superior<br>
-También sin querer, se agrego compatibilidad con sistemas Mac y GNU/Linux.<br>
 Se cambio la ruta de guardado para esta version multiplataforma (userdata).
 
 ## Bueno, a lo que vinimos...
