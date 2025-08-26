@@ -1,3 +1,8 @@
+
+>[!WARNING]
+>El codigo esta obsoleto, recomiendo usar la el fork de <a href="https://github.com/MayorTom4815/hud_overlay">MayorTom4815</a>
+<br>
+
 # 🕹️ Arcade HUD Overlay (Windows)
 
 Visualizador gráfico de entradas tipo arcade para joystick o teclado, diseñado como overlay para emuladores.
