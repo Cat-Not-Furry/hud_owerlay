@@ -64,7 +64,7 @@ hud_overlay/<br>
     
 Gracias al uso de la carpeta libs/, no se requiere instalar dependencias con pip.
 
-#### Requisitos (Windows/MAC/Linux)
+#### Requisitos
 
 Python 3.7+
 Acceso a /dev/input/*
