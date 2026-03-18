@@ -1,0 +1,37 @@
+{
+	"active_profile": "perfil_1",
+	"window_mode": "normal",
+	"ignore_videoresize": false,
+	"capture_mode": "normal",
+	"ui_font_family": "JetBrainsMono",
+	"profiles": [
+		{
+			"id": "perfil_1",
+			"name": "Perfil principal",
+			"button_count": 6,
+			"input_mode": "teclado",
+			"controller_style": "default",
+			"hitbox_alt_layout": false,
+			"joystick_bindings_style": null,
+			"preferred_joystick_path": null,
+			"preferred_keyboard_path": null,
+			"tournament_mode": false,
+			"joystick_color": [0, 255, 0],
+			"joystick_knob_color": [0, 255, 0],
+			"joystick_bar_color": [0, 0, 0],
+			"joystick_ring_color": [255, 255, 255],
+			"button_color_inactive": [80, 80, 80],
+			"button_color_active": [255, 0, 0],
+			"button_icons": {
+				"LP": "icons/lp.png",
+				"MP": "icons/mp.png",
+				"HP": "icons/hp.png",
+				"LK": "icons/lk.png",
+				"MK": "icons/mk.png",
+				"HK": "icons/hk.png"
+			},
+			"key_bindings": {},
+			"joystick_bindings": {}
+		}
+	]
+}
