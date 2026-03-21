@@ -3,8 +3,8 @@
 Visualizador gráfico de entradas tipo arcade para joystick o teclado, diseñado como overlay para emuladores.
 Perfecto para tutoriales de juegos de pelea, demostraciones de habilidad o como herramienta de entrenamiento.
 
-> [!WARNING]
-> El código original está obsoleto; se recomienda el fork de [MayorTom4815](https://github.com/MayorTom4815/hud_overlay). Este proyecto (hud_owerlay) es una versión Windows-only con estructura modular.
+> [!NOTE]
+> El código ya esta corregido; más sin embargo si desea probar una versiöón mejorada pero no tan distorcionada del programa le recomiendo el fork de [MayorTom4815](https://github.com/MayorTom4815/hud_overlay). Este proyecto (hud_owerlay) es una versión más conservadora del overlay.
 
 ## Estado actual del proyecto (Marzo 2025)
 
