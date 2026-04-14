@@ -15,6 +15,7 @@ from config import (
 	get_bindings_format_key,
 	get_default_icon_path,
 )
+from config.hud_layout import normalize_hud_layout
 
 
 def _read_json_file(path, default):
@@ -80,6 +81,7 @@ def _default_profile(profile_id, name, button_count=6):
 		"button_icons": _default_button_icons(button_count),
 		"key_bindings": {},
 		"joystick_bindings": {},
+		"hud_layout": None,
 	}
 
 
@@ -209,6 +211,7 @@ def _normalize_profile(profile, fallback_index):
 		"button_icons": button_icons,
 		"key_bindings": key_bindings,
 		"joystick_bindings": joystick_bindings,
+		"hud_layout": normalize_hud_layout(profile.get("hud_layout")),
 	}
 
 

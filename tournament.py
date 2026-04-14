@@ -3,7 +3,6 @@ import sys
 import pygame
 
 import main as main_app
-from config import SCREEN_WIDTH, SCREEN_HEIGHT
 from profiles import load_profiles_data, save_profiles_data, set_active_profile
 from utils import set_ui_font_family
 
@@ -14,7 +13,9 @@ def main():
 	profile_data = load_profiles_data()
 	set_ui_font_family(profile_data.get("ui_font_family", "JetBrainsMono"))
 	main_app._current_window_mode = profile_data.get("window_mode", "floating_hint")
-	screen = main_app._set_window_size(main_app.MENU_WIDTH, main_app.MENU_HEIGHT, "Tournament Mode")
+	screen = main_app._set_window_size(
+		main_app.APP_WINDOW_WIDTH, main_app.APP_WINDOW_HEIGHT, "Tournament Mode"
+	)
 
 	selected_id, screen = main_app.select_profile_secondary(profile_data, title="Perfil para torneo")
 	if selected_id is None:
@@ -24,7 +25,6 @@ def main():
 	set_active_profile(profile_data, selected_id)
 	save_profiles_data(profile_data)
 
-	screen = main_app._set_window_size(SCREEN_WIDTH, SCREEN_HEIGHT, "Tournament Mode")
 	main_app.run_hud_session(screen, profile_data, interactive_setup=False, force_tournament=True)
 	pygame.quit()
 	sys.exit()

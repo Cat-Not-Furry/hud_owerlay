@@ -5,8 +5,6 @@ import time
 import pygame
 from config import (
 	COLOR_TEXT,
-	SCREEN_WIDTH,
-	SCREEN_HEIGHT,
 	MIN_FONT_SIZE,
 	MAX_FONT_SIZE,
 	DEFAULT_MONO_FONT_FAMILY,
@@ -156,46 +154,6 @@ def track_set_mode():
 
 def get_last_set_mode_time_ms():
 	return _last_set_mode_time_ms
-
-
-def open_secondary_window(title, size=(460, 260), window_mode="floating_hint"):
-	_debug_menu(f"open_secondary_window {title} {size}")
-	previous_surface = pygame.display.get_surface()
-	previous_size = previous_surface.get_size() if previous_surface else (SCREEN_WIDTH, SCREEN_HEIGHT)
-	window = pygame.display.set_mode(size, pygame.RESIZABLE)
-	pygame.display.set_caption(title)
-	track_set_mode()
-	return window, previous_size
-
-
-def restore_primary_window(size, window_mode="floating_hint", title="Arcade HUD Overlay"):
-	_debug_menu(f"restore_primary_window {size}")
-	window = pygame.display.set_mode(size, pygame.RESIZABLE)
-	pygame.display.set_caption(title)
-	track_set_mode()
-	return window
-
-
-def run_modal_child_window(
-	title,
-	size,
-	window_mode,
-	runner,
-	restore_title="Arcade HUD Overlay",
-):
-	secondary, primary_size = open_secondary_window(
-		title=title,
-		size=size,
-		window_mode=window_mode,
-	)
-	try:
-		return runner(secondary)
-	finally:
-		restore_primary_window(
-			size=primary_size,
-			window_mode=window_mode,
-			title=restore_title,
-		)
 
 
 class _PygameJoystickWrapper:

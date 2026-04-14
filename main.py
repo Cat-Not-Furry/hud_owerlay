@@ -90,13 +90,12 @@ from utils import (
 	draw_centered_text,
 	build_responsive_font,
 	fit_text_to_width,
-	open_secondary_window,
-	restore_primary_window,
 	list_keyboard_devices_by_capabilities,
 	set_ui_font_family,
 	track_set_mode,
 	get_last_set_mode_time_ms,
 )
+from maps.input_reader import poll_pygame_keyboard_if_needed
 from training import (
 	create_training_state,
 	start_recording,
@@ -108,12 +107,28 @@ from training import (
 	has_sequence,
 	sequence_to_dict,
 )
+from application_context import ApplicationContext
+from state_manager import (
+	StateManager,
+	STOP,
+	BootState,
+	MainMenuState,
+	ModalState,
+	ProfileConfigState,
+	HudSetupState,
+	HudRunState,
+)
 
 MENU_WIDTH = 320
 MENU_HEIGHT = 180
 SELECTOR_WINDOW_SIZE = (500, 300)
 MAPPER_WINDOW_SIZE = (620, 380)
 CONFIRM_WINDOW_SIZE = (420, 230)
+
+# Ventana única de sesión: mismo surface para MainMenuState, ProfileConfigState, HudSetupState y HudRunState.
+# Evita pygame.display.set_mode al cambiar de estado (pérdida de foco al capturar con OBS, etc.).
+APP_WINDOW_WIDTH = max(SCREEN_WIDTH, MENU_WIDTH, 460)
+APP_WINDOW_HEIGHT = max(SCREEN_HEIGHT, MENU_HEIGHT, 320)
 
 _current_window_mode = "floating_hint"
 
@@ -193,19 +208,12 @@ def _launch_easteregg_instance():
 
 
 def _run_secondary_selector(title, size, runner):
-	window_mode = "floating_hint"
-	try:
-		window_mode = _current_window_mode
-	except NameError:
-		pass
-	secondary, primary_size = open_secondary_window(
-		title, size=size, window_mode=window_mode
-	)
-	result = runner(secondary)
-	primary = restore_primary_window(
-		primary_size, window_mode=window_mode, title="Arcade HUD Overlay"
-	)
-	return result, primary
+	"""Ventana única: ejecuta el selector en la superficie actual sin cambiar set_mode."""
+	screen = pygame.display.get_surface()
+	if screen is None:
+		return None, None
+	result = runner(screen)
+	return result, screen
 
 
 def select_profile_secondary(profile_data, title="Selecciona perfil"):
@@ -616,15 +624,12 @@ def show_main_menu(screen, profile_data=None):
 		clock.tick(60)
 
 
-def _open_config_secondary_window(profile_data):
-	screen, primary_size = open_secondary_window(
-		"Configuracion de perfiles", size=(460, 320), window_mode=_current_window_mode
-	)
+def _open_config_on_main_window(profile_data):
+	screen = pygame.display.get_surface()
+	if screen is None:
+		return None, None
 	updated = open_profile_config_menu(screen, profile_data)
-	restored = restore_primary_window(
-		primary_size, window_mode=_current_window_mode, title="Arcade HUD Overlay"
-	)
-	return updated, restored
+	return updated, screen
 
 
 def _run_hud_setup_interactive(profile, profile_data):
@@ -870,13 +875,15 @@ def _run_hud_main_loop(
 	)
 	while running:
 		keys = pygame.key.get_pressed()
+		if input_mode in ("teclado", "hitbox", "mixbox"):
+			poll_pygame_keyboard_if_needed(input_state, keys)
 		events = pygame.event.get()
 		running, pending_resize = _process_hud_events(events, keys, training_state)
 		snapshot_if_recording(training_state, input_state)
 		if training_state["status"] == "playing":
 			update_playback(training_state, input_state)
 		screen.fill(bg)
-		draw_hud(screen, input_state, button_count)
+		draw_hud(screen, input_state, button_count, profile)
 		pygame.display.flip()
 		screen = _apply_hud_resize(screen, pending_resize, ignore_videoresize)
 		_debug_report_videoresize_stats()
@@ -918,40 +925,140 @@ def _run_input_mapping_flows(screen, profile, button_count, input_mode, selected
 	return True, screen
 
 
-def run_hud_session(
-	screen, profile_data, interactive_setup=True, force_tournament=False
-):
-	profile = get_active_profile(profile_data)
-	setup_result = _run_hud_setup(profile, profile_data, interactive_setup)
+def _prepare_hud_session(ctx, interactive_setup=True, force_tournament=False):
+	"""Rellena ctx.hud tras setup y mapeos. Retorna False si el usuario cancela."""
+	profile = get_active_profile(ctx.profile_data)
+	setup_result = _run_hud_setup(profile, ctx.profile_data, interactive_setup)
 	if setup_result is None:
 		return False
 	button_count, input_mode, selected_device_path, wants_keyboard_remap, setup_screen = setup_result
 	if setup_screen is not None:
-		screen = setup_screen
+		ctx.screen = setup_screen
 
 	labels = get_button_labels(button_count)
 	_apply_session_profile(profile, button_count, input_mode, selected_device_path, labels, wants_keyboard_remap)
 
-	ok, screen = _run_input_mapping_flows(
-		screen, profile, button_count, input_mode, selected_device_path, interactive_setup
+	ok, ctx.screen = _run_input_mapping_flows(
+		ctx.screen,
+		profile,
+		button_count,
+		input_mode,
+		selected_device_path,
+		interactive_setup,
 	)
 	if not ok:
 		return False
 
-	sync_active_profile_to_legacy_files(profile_data)
-	save_profiles_data(profile_data)
-	input_state = {"stick": [0, 0], "buttons": [False] * len(labels)}
-	_run_hud_main_loop(
-		screen,
-		input_state,
-		button_count,
-		profile_data,
-		input_mode,
-		selected_device_path,
-		profile,
-		force_tournament,
-	)
+	sync_active_profile_to_legacy_files(ctx.profile_data)
+	save_profiles_data(ctx.profile_data)
+	ctx.hud = {
+		"profile": profile,
+		"button_count": button_count,
+		"input_mode": input_mode,
+		"selected_device_path": selected_device_path,
+		"force_tournament": force_tournament,
+		"input_state": {"stick": [0, 0], "buttons": [False] * len(labels)},
+	}
 	return True
+
+
+def _run_hud_main_loop_from_ctx(ctx):
+	h = ctx.hud
+	_run_hud_main_loop(
+		ctx.screen,
+		h["input_state"],
+		h["button_count"],
+		ctx.profile_data,
+		h["input_mode"],
+		h["selected_device_path"],
+		h["profile"],
+		h["force_tournament"],
+	)
+
+
+def run_hud_session(
+	screen, profile_data, interactive_setup=True, force_tournament=False
+):
+	ctx = ApplicationContext(screen)
+	ctx.profile_data = profile_data
+	ctx.screen = screen
+	if not _prepare_hud_session(ctx, interactive_setup, force_tournament):
+		return False
+	_run_hud_main_loop_from_ctx(ctx)
+	return True
+
+
+def _handle_boot_state(ctx):
+	global _current_window_mode
+	ctx.profile_data = load_profiles_data()
+	_current_window_mode = (
+		"normal"
+		if os.environ.get("HUD_WINDOW_MODE_NORMAL") == "1"
+		else ctx.profile_data.get("window_mode", "floating_hint")
+	)
+	set_ui_font_family(ctx.profile_data.get("ui_font_family", "JetBrainsMono"))
+	return MainMenuState
+
+
+def _handle_main_menu_state(ctx):
+	global _current_window_mode
+	_current_window_mode = (
+		"normal"
+		if os.environ.get("HUD_WINDOW_MODE_NORMAL") == "1"
+		else ctx.profile_data.get("window_mode", "floating_hint")
+	)
+	set_ui_font_family(ctx.profile_data.get("ui_font_family", "JetBrainsMono"))
+	action = show_main_menu(ctx.screen, ctx.profile_data)
+	_debug_menu(f"state MainMenu action={action}")
+	if action == "salir":
+		return ModalState
+	if action == "configurar":
+		return ProfileConfigState
+	if action == "iniciar":
+		return HudSetupState
+	return MainMenuState
+
+
+def _handle_modal_state(ctx):
+	confirmed, ctx.screen = _confirm_exit_secondary()
+	if confirmed:
+		ctx.running = False
+		return STOP
+	_debug_menu("ModalState: salida cancelada")
+	return MainMenuState
+
+
+def _handle_profile_config_state(ctx):
+	updated, ctx.screen = _open_config_on_main_window(ctx.profile_data)
+	if updated:
+		ctx.profile_data = updated
+		save_profiles_data(ctx.profile_data)
+		set_ui_font_family(ctx.profile_data.get("ui_font_family", "JetBrainsMono"))
+	_debug_menu("state ProfileConfig -> MainMenu")
+	return MainMenuState
+
+
+def _handle_hud_setup_state(ctx):
+	# Misma ventana que el menú principal: no se llama set_mode aquí.
+	if not _prepare_hud_session(ctx, interactive_setup=True, force_tournament=False):
+		return MainMenuState
+	return HudRunState
+
+
+def _handle_hud_run_state(ctx):
+	_run_hud_main_loop_from_ctx(ctx)
+	ctx.clear_hud()
+	return MainMenuState
+
+
+_STATE_HANDLERS = {
+	BootState: _handle_boot_state,
+	MainMenuState: _handle_main_menu_state,
+	ModalState: _handle_modal_state,
+	ProfileConfigState: _handle_profile_config_state,
+	HudSetupState: _handle_hud_setup_state,
+	HudRunState: _handle_hud_run_state,
+}
 
 
 def main():
@@ -959,42 +1066,16 @@ def main():
 	pygame.init()
 	os.environ["SDL_VIDEO_WINDOW_POS"] = "100,100"
 	_current_window_mode = "floating_hint"
-	screen = _set_window_size(MENU_WIDTH, MENU_HEIGHT, "Arcade HUD Overlay")
+	screen = _set_window_size(APP_WINDOW_WIDTH, APP_WINDOW_HEIGHT, "Arcade HUD Overlay")
 
-	profile_data = load_profiles_data()
-	_current_window_mode = (
-		"normal"
-		if os.environ.get("HUD_WINDOW_MODE_NORMAL") == "1"
-		else profile_data.get("window_mode", "floating_hint")
-	)
-	set_ui_font_family(profile_data.get("ui_font_family", "JetBrainsMono"))
-	while True:
-		_current_window_mode = (
-			"normal"
-			if os.environ.get("HUD_WINDOW_MODE_NORMAL") == "1"
-			else profile_data.get("window_mode", "floating_hint")
-		)
-		set_ui_font_family(profile_data.get("ui_font_family", "JetBrainsMono"))
-		action = show_main_menu(screen, profile_data)
-		_debug_menu(f"main loop action={action}")
-		if action == "salir":
-			confirmed, screen = _confirm_exit_secondary()
-			if confirmed:
-				break
-			_debug_menu("main loop continue (salir cancelado)")
-			continue
-		if action == "configurar":
-			updated, screen = _open_config_secondary_window(profile_data)
-			if updated:
-				profile_data = updated
-				save_profiles_data(profile_data)
-				set_ui_font_family(profile_data.get("ui_font_family", "JetBrainsMono"))
-			_debug_menu("main loop continue (configurar)")
-			continue
-		if action == "iniciar":
-			screen = _set_window_size(SCREEN_WIDTH, SCREEN_HEIGHT, "Arcade HUD Overlay")
-			run_hud_session(screen, profile_data)
-			screen = _set_window_size(MENU_WIDTH, MENU_HEIGHT, "Arcade HUD Overlay")
+	ctx = ApplicationContext(screen)
+	sm = StateManager(BootState)
+	while ctx.running:
+		handler = _STATE_HANDLERS[sm.current]
+		next_state = handler(ctx)
+		if next_state is STOP:
+			break
+		sm.set_state(next_state)
 
 	pygame.quit()
 	sys.exit()

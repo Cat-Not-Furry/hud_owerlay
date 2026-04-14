@@ -8,9 +8,13 @@ Perfecto para tutoriales de juegos de pelea, demostraciones de habilidad o como 
 
 ## Estado actual del proyecto (Marzo 2025)
 
+- **Ventana única:** menús, configuración y mapeos usan la misma superficie pygame (sin `set_mode` secundario).
 - Estructura modular: `config/`, `maps/`, `profiles/`, `render/`, `training/`, `utils/`, `json/`
-- Entrada: teclado vía `keyboard`, joystick vía `pygame.joystick`
-- Perfiles y bindings centralizados en `json/profiles.json`
+- **Teclado:** intento de captura global con `keyboard` en Windows; si no hay hook o se desactiva, lectura con **foco** vía `pygame` (`HUD_KEYBOARD_GLOBAL=0` fuerza solo foco).
+- Capa `maps/keyboard_backend.py` aísla la lógica de teclado global.
+- **Layout HUD:** campo `hud_layout` por perfil (stick + botones en coordenadas de diseño); editor en Configuración → «Editor layout HUD».
+- Perfiles y bindings en `json/profiles.json`; export/import ZIP incluye `hud_layout` normalizado.
+- Estados lógicos en [`state_manager.py`](state_manager.py): `BootState`, `MainMenuState`, `ModalState`, `ProfileConfigState`, `HudSetupState`, `HudRunState`; `HudLayoutEditorState` vive como subflujo dentro del menú de perfiles ([`render/hud_layout_editor.py`](render/hud_layout_editor.py)). Contexto compartido: [`application_context.py`](application_context.py).
 - Soporte para 4, 6 u 8 botones; modos hitbox y mixbox
 
 ## Características
@@ -70,6 +74,25 @@ pip install -r requirements.txt
 - Perfiles y bindings se guardan en `json/profiles.json`
 - Los íconos de botones están en `icons/` y se pueden personalizar
 - Si existía `userdata/`, la migración a `json/` se realiza automáticamente al iniciar
+- Variable de entorno `HUD_KEYBOARD_GLOBAL=0`: solo teclado con ventana enfocada (útil si `keyboard` falla o no quieres hook global).
+- Pruebas mínimas: `python -m unittest discover -s tests`
+
+## Arquitectura (resumen)
+
+```mermaid
+flowchart LR
+	subgraph one [Una ventana pygame]
+		Menu[Main menu]
+		Config[Profile config]
+		Setup[HUD setup]
+		Run[HUD run]
+	end
+	Menu --> Config
+	Menu --> Setup
+	Setup --> Run
+	Config --> Menu
+	Run --> Menu
+```
 
 ## Créditos
 

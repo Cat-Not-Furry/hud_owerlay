@@ -19,7 +19,6 @@ from utils import (
 	find_gamepad_by_name,
 	build_responsive_font,
 	fit_text_to_width,
-	run_modal_child_window,
 )
 
 
@@ -74,57 +73,49 @@ def _choose_device_from_candidates(screen, candidates):
 		clock.tick(60)
 
 
-def _prompt_manual_device_name(window_mode="floating_hint"):
-	def _runner(secondary):
-		typed = ""
-		clock = pygame.time.Clock()
+def _prompt_manual_device_name(screen, window_mode="floating_hint"):
+	typed = ""
+	clock = pygame.time.Clock()
 
-		while True:
-			lines = ["Escribe nombre del dispositivo", typed or "...", "Enter buscar | Borrar | Esc"]
-			font, line_gap = build_responsive_font(
-				secondary,
-				lines,
-				base_size=30,
-				min_size=14,
-				max_size=34,
-				base_resolution=(460, 260),
-			)
-			secondary.fill((0, 0, 0))
-			title_y = max(28, line_gap)
-			draw_centered_text(secondary, font, "Escribe nombre del dispositivo", y=title_y)
-			draw_centered_text(secondary, font, typed or "...", y=title_y + line_gap)
-			draw_centered_text(secondary, font, "Enter buscar | Borrar | Esc", y=title_y + line_gap * 2)
-			pygame.display.flip()
+	while True:
+		lines = ["Escribe nombre del dispositivo", typed or "...", "Enter buscar | Borrar | Esc"]
+		font, line_gap = build_responsive_font(
+			screen,
+			lines,
+			base_size=30,
+			min_size=14,
+			max_size=34,
+			base_resolution=(max(460, screen.get_width()), max(260, screen.get_height())),
+		)
+		screen.fill((0, 0, 0))
+		title_y = max(28, line_gap)
+		draw_centered_text(screen, font, "Escribe nombre del dispositivo", y=title_y)
+		draw_centered_text(screen, font, typed or "...", y=title_y + line_gap)
+		draw_centered_text(screen, font, "Enter buscar | Borrar | Esc", y=title_y + line_gap * 2)
+		pygame.display.flip()
 
-			for event in pygame.event.get():
-				if event.type == pygame.QUIT:
+		for event in pygame.event.get():
+			if event.type == pygame.QUIT:
+				return None
+			if event.type == pygame.KEYDOWN:
+				if event.key == pygame.K_ESCAPE:
 					return None
-				if event.type == pygame.KEYDOWN:
-					if event.key == pygame.K_ESCAPE:
-						return None
-					if event.key == pygame.K_BACKSPACE:
-						typed = typed[:-1]
-					elif event.key == pygame.K_RETURN:
-						device = find_gamepad_by_name(typed)
-						if device:
-							selected_path = device.path
-							device.close()
-							return selected_path
-						secondary.fill((20, 0, 0))
-						draw_centered_text(secondary, font, "No se encontro dispositivo valido", y=95)
-						pygame.display.flip()
-						pygame.time.wait(900)
-						typed = ""
-					elif event.unicode and event.unicode.isprintable():
-						typed += event.unicode
-			clock.tick(60)
-
-	return run_modal_child_window(
-		title="Ingreso manual de dispositivo",
-		size=(460, 260),
-		window_mode=window_mode,
-		runner=_runner,
-	)
+				if event.key == pygame.K_BACKSPACE:
+					typed = typed[:-1]
+				elif event.key == pygame.K_RETURN:
+					device = find_gamepad_by_name(typed)
+					if device:
+						selected_path = device.path
+						device.close()
+						return selected_path
+					screen.fill((20, 0, 0))
+					draw_centered_text(screen, font, "No se encontro dispositivo valido", y=95)
+					pygame.display.flip()
+					pygame.time.wait(900)
+					typed = ""
+				elif event.unicode and event.unicode.isprintable():
+					typed += event.unicode
+		clock.tick(60)
 
 
 def _wait_for_single_button_pygame(joystick, screen, label, controller_style, button_count):
@@ -268,7 +259,7 @@ def _render_diagnostic_menu(screen, options, selected, selected_path):
 def run_joystick_diagnostic(screen, button_count, window_mode="floating_hint", controller_style="default"):
 	candidates = list_gamepad_devices_by_capabilities()
 	if len(candidates) == 0:
-		manual_path = _prompt_manual_device_name(window_mode=window_mode)
+		manual_path = _prompt_manual_device_name(screen, window_mode=window_mode)
 		if manual_path:
 			return {"status": "selected", "device_path": manual_path}
 		return {"status": "back_to_input"}

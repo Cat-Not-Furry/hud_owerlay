@@ -19,7 +19,6 @@ from utils import (
 	draw_text_left,
 	build_responsive_font,
 	fit_text_to_width,
-	run_modal_child_window,
 	list_keyboard_devices_by_capabilities,
 	set_ui_font_family,
 )
@@ -27,6 +26,7 @@ from profiles import get_active_profile, set_active_profile, create_profile
 from profiles.profile_export import export_profile_to_zip, import_profile_from_zip
 from utils import pick_image_file_with_validation
 from utils.file_picker import pick_directory, pick_zip_file
+from .hud_layout_editor import run_hud_layout_editor
 
 
 def _color_name_from_values(values):
@@ -108,12 +108,7 @@ def _run_text_input(screen, title, initial_value="", window_mode="floating_hint"
 						typed += event.unicode
 			clock.tick(60)
 
-	return run_modal_child_window(
-		title=title,
-		size=(560, 300),
-		window_mode=window_mode,
-		runner=_runner,
-	)
+	return _runner(screen)
 
 
 def _run_choice_menu(screen, title, options, initial_index=0, window_mode="floating_hint"):
@@ -155,15 +150,10 @@ def _run_choice_menu(screen, title, options, initial_index=0, window_mode="float
 						return None
 			clock.tick(60)
 
-	return run_modal_child_window(
-		title=title,
-		size=(540, 320),
-		window_mode=window_mode,
-		runner=_runner,
-	)
+	return _runner(screen)
 
 
-def _run_message_modal(title, message_lines, window_mode="floating_hint"):
+def _run_message_modal(screen, title, message_lines, window_mode="floating_hint"):
 	lines = [title] + list(message_lines) + ["Enter/Esc para continuar"]
 
 	def _runner(secondary):
@@ -191,12 +181,7 @@ def _run_message_modal(title, message_lines, window_mode="floating_hint"):
 					return None
 			clock.tick(60)
 
-	return run_modal_child_window(
-		title=title,
-		size=(560, 280),
-		window_mode=window_mode,
-		runner=_runner,
-	)
+	return _runner(screen)
 
 
 class ProfileConfigMenu:
@@ -208,7 +193,17 @@ class ProfileConfigMenu:
 		["joystick_color", "button_color"],
 		["global_keyboard", "tournament_mode"],
 	]
-	ACTIONS_ROW = ["hitbox_alt_layout", "change_icon", "create_profile", "joystick_color_hex", "export_profile", "import_profile", "save_and_back", "cancel"]
+	ACTIONS_ROW = [
+		"hitbox_alt_layout",
+		"change_icon",
+		"create_profile",
+		"edit_hud_layout",
+		"joystick_color_hex",
+		"export_profile",
+		"import_profile",
+		"save_and_back",
+		"cancel",
+	]
 
 	@property
 	def OPTION_KEYS(self):
@@ -240,6 +235,7 @@ class ProfileConfigMenu:
 					"joystick_bindings": dict(p["joystick_bindings"]),
 					"button_color_inactive": list(p.get("button_color_inactive", [80, 80, 80])),
 					"button_color_active": list(p.get("button_color_active", [255, 0, 0])),
+					"hud_layout": p.get("hud_layout"),
 				}
 				for p in self.profile_data["profiles"]
 			],
@@ -270,6 +266,7 @@ class ProfileConfigMenu:
 			"create_profile": "Crear perfil",
 			"export_profile": "Exportar perfil",
 			"import_profile": "Importar perfil",
+			"edit_hud_layout": "Editor layout HUD",
 			"save_and_back": "Guardar y volver",
 			"cancel": "Cancelar",
 		}
@@ -337,7 +334,7 @@ class ProfileConfigMenu:
 			if chosen_file:
 				active_profile["button_icons"][label] = os.path.relpath(chosen_file, BASE_DIR)
 			elif err:
-				_run_message_modal("Icono invalido", [err, "Solo se permiten imagenes <= 512x512."], window_mode=window_mode)
+				_run_message_modal(self.screen, "Icono invalido", [err, "Solo se permiten imagenes <= 512x512."], window_mode=window_mode)
 		else:
 			active_profile["button_icons"][label] = sel
 
@@ -546,15 +543,20 @@ def _h_create_profile(menu, active_profile, window_mode):
 	return None
 
 
+def _h_edit_hud_layout(menu, active_profile, window_mode):
+	run_hud_layout_editor(menu.screen, active_profile)
+	return None
+
+
 def _h_export_profile(menu, active_profile, window_mode):
 	dest_dir = pick_directory(title="Guardar perfil en...")
 	if not dest_dir:
 		return None
 	zip_path = export_profile_to_zip(active_profile, dest_dir)
 	if zip_path:
-		_run_message_modal("Exportado", [f"Perfil guardado en {zip_path}"], window_mode=window_mode)
+		_run_message_modal(menu.screen, "Exportado", [f"Perfil guardado en {zip_path}"], window_mode=window_mode)
 	else:
-		_run_message_modal("Error", ["No se pudo exportar el perfil."], window_mode=window_mode)
+		_run_message_modal(menu.screen, "Error", ["No se pudo exportar el perfil."], window_mode=window_mode)
 	return None
 
 
@@ -582,9 +584,9 @@ def _h_import_profile(menu, active_profile, window_mode):
 			zip_path, menu.profile_data, conflict_resolver=conflict_resolver
 		)
 		if imported:
-			_run_message_modal("Importado", [f"Perfil '{imported['name']}' importado correctamente."], window_mode=window_mode)
+			_run_message_modal(menu.screen, "Importado", [f"Perfil '{imported['name']}' importado correctamente."], window_mode=window_mode)
 	except ValueError as e:
-		_run_message_modal("Error", [str(e)], window_mode=window_mode)
+		_run_message_modal(menu.screen, "Error", [str(e)], window_mode=window_mode)
 	return None
 
 
@@ -618,6 +620,7 @@ _OPTION_HANDLERS = {
 	"joystick_color_hex": _h_joystick_color_hex,
 	"change_icon": _h_change_icon,
 	"create_profile": _h_create_profile,
+	"edit_hud_layout": _h_edit_hud_layout,
 	"export_profile": _h_export_profile,
 	"import_profile": _h_import_profile,
 	"save_and_back": lambda m, p, w: "save",
