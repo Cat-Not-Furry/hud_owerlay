@@ -105,3 +105,58 @@
 ## Historial de sincronización
 
 - 2026-04-26: Se crea `bitacora.md` como registro único de variantes y portabilidad.
+
+## Instrucciones de empaquetado (Windows)
+
+Estas instrucciones son operativas para generar artefactos en una PC Windows.
+
+### Pre-requisitos
+
+- Entorno virtual activo.
+- Dependencias instaladas:
+  - `pip install -r requirements.txt`
+- PyInstaller disponible (version fijada en `requirements.txt`).
+- Inno Setup instalado.
+
+### 1) Generar `.exe` empaquetado
+
+Desde la raíz del repo:
+
+```bash
+pyinstaller main.py --name hud_owerlay --onedir --noconsole --clean --add-data "icons;icons" --add-data "json;json" --hidden-import=tkinter --hidden-import=tkinter.messagebox
+```
+
+Resultado esperado:
+
+- `dist/hud_owerlay/hud_owerlay.exe`
+
+### 2) Preparar instalador `.exe`
+
+Archivos de instalación:
+
+- `install/installer.iss`
+- `install/install_windows.bat`
+- `install/hud_overlay.ico`
+
+El instalador usa icono en:
+
+- `install/hud_overlay.ico`
+
+### 3) Compilar instalador con Inno Setup
+
+- Abrir `install/installer.iss` en Inno Setup.
+- Compilar script.
+
+Resultado esperado:
+
+- `hud_owerlay_installer.exe`
+
+### 4) Registro posterior en bitácora
+
+Después de cada build/instalación manual, agregar entrada nueva en sección Windows con:
+
+- fecha
+- comando usado
+- artefactos generados
+- incidencias encontradas
+- estado de portabilidad

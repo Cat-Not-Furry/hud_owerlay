@@ -49,7 +49,7 @@ pip install pyinstaller==6.11.1
 Comando recomendado:
 
 ```bash
-pyinstaller launcher.py --name hud_owerlay --onedir --noconsole --clean --add-data "icons;icons" --add-data "json;json" --hidden-import=tkinter --hidden-import=tkinter.messagebox
+pyinstaller main.py --name hud_owerlay --onedir --noconsole --clean --add-data "icons;icons" --add-data "json;json" --hidden-import=tkinter --hidden-import=tkinter.messagebox
 ```
 
 Resultado esperado:
