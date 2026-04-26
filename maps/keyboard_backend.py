@@ -15,9 +15,7 @@ def reset_backend_state():
 
 
 def should_attempt_global_hook(preferred_keyboard_path):
-	"""En Windows se intenta hook global salvo que el perfil fuerce solo foco (path explícito None y sin override)."""
-	if sys.platform != "win32":
-		return False
+	"""En Windows se intenta hook global salvo que el perfil fuerce solo foco."""
 	if preferred_keyboard_path is not None:
 		return True
 	import os
@@ -33,8 +31,6 @@ def try_init_global_keyboard():
 	if _init_attempted:
 		return _global_keyboard_ready
 	_init_attempted = True
-	if sys.platform != "win32":
-		return False
 	try:
 		import keyboard as kb_module
 		kb_module.is_pressed("shift")

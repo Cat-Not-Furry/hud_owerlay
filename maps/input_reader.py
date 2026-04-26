@@ -7,10 +7,22 @@ import pygame
 
 from config import BINDINGS_PATH, JOYSTICK_BINDINGS_PATH, get_button_labels, get_bindings_format_key
 from maps import keyboard_backend
+from core import get_extensions_runtime, get_input_history
 
 _use_pygame_poll = False
 _poll_bindings = {}
 _poll_button_count = 6
+
+
+def _record_input_event(mode, stick, buttons):
+	event = {
+		"ts_ms": int(time.time() * 1000),
+		"mode": mode,
+		"stick": [float(stick[0]), float(stick[1])],
+		"buttons": [bool(value) for value in buttons],
+	}
+	get_input_history().append(event)
+	get_extensions_runtime().emit("on_input_event", event)
 
 
 def uses_pygame_keyboard_poll():
@@ -23,6 +35,7 @@ def poll_pygame_keyboard_if_needed(input_state, keys_pressed):
 	keyboard_backend.poll_keyboard_pygame(
 		input_state, _poll_bindings, _poll_button_count, keys_pressed
 	)
+	_record_input_event("keyboard_focus", input_state["stick"], input_state["buttons"])
 
 
 def _load_keyboard_bindings(button_count):
@@ -58,6 +71,7 @@ def listen_keyboard_global(input_state, button_count, bindings_map):
 			input_state["buttons"][index] = (
 				keyboard.is_pressed(keyname) if keyname else False
 			)
+		_record_input_event("keyboard_global", input_state["stick"], input_state["buttons"])
 
 		time.sleep(0.01)
 
@@ -146,5 +160,6 @@ def listen_joystick(input_state, button_count, bindings_map, preferred_device_pa
 			btn = bindings_map.get(label, -1)
 			if isinstance(btn, int) and btn >= 0 and btn < joystick.get_numbuttons():
 				input_state["buttons"][i] = bool(joystick.get_button(btn))
+		_record_input_event("joystick", input_state["stick"], input_state["buttons"])
 
 		time.sleep(0.01)

@@ -4,7 +4,7 @@ Visualizador gráfico de entradas tipo arcade para joystick o teclado, diseñado
 Perfecto para tutoriales de juegos de pelea, demostraciones de habilidad o como herramienta de entrenamiento.
 
 > [!NOTE]
-> El código ya esta corregido; más sin embargo si desea probar una versiöón mejorada pero no tan distorcionada del programa le recomiendo el fork de [MayorTom4815](https://github.com/MayorTom4815/hud_overlay). Este proyecto (hud_owerlay) es una versión más conservadora del overlay.
+> Este proyecto (`hud_owerlay`) prioriza estabilidad en Windows con un enfoque conservador de cambios.
 
 ## Estado actual del proyecto (Marzo 2025)
 
@@ -13,7 +13,7 @@ Perfecto para tutoriales de juegos de pelea, demostraciones de habilidad o como 
 - **Teclado:** intento de captura global con `keyboard` en Windows; si no hay hook o se desactiva, lectura con **foco** vía `pygame` (`HUD_KEYBOARD_GLOBAL=0` fuerza solo foco).
 - Capa `maps/keyboard_backend.py` aísla la lógica de teclado global.
 - **Layout HUD:** campo `hud_layout` por perfil (stick + botones en coordenadas de diseño); editor en Configuración → «Editor layout HUD».
-- Perfiles y bindings en `json/profiles.json`; export/import ZIP incluye `hud_layout` normalizado.
+- Perfiles y bindings en `%APPDATA%\\hud_owerlay\\profiles.json`; export/import ZIP incluye `hud_layout` normalizado.
 - Estados lógicos en [`state_manager.py`](state_manager.py): `BootState`, `MainMenuState`, `ModalState`, `ProfileConfigState`, `HudSetupState`, `HudRunState`; `HudLayoutEditorState` vive como subflujo dentro del menú de perfiles ([`render/hud_layout_editor.py`](render/hud_layout_editor.py)). Contexto compartido: [`application_context.py`](application_context.py).
 - Soporte para 4, 6 u 8 botones; modos hitbox y mixbox
 
@@ -43,7 +43,7 @@ hud_owerlay/
 ├── render/              # hud_renderer, selectores, menú de perfiles
 ├── training/            # recorder, standalone
 ├── utils/               # file_picker, image_file_picker, utilidades
-├── json/                # profiles.json, bindings (datos de usuario)
+├── json/                # datos base de repo (la app usa AppData en runtime)
 ├── fonts/               # Fuentes Nerd Font
 └── icons/               # lp.png, mp.png, hp.png, ...
 ```
@@ -61,6 +61,26 @@ cd hud_owerlay
 pip install -r requirements.txt
 ```
 
+## Empaquetado e instalador Windows
+
+El flujo oficial para generar el `.exe` empaquetado y el instalador `.exe` esta documentado en:
+
+- [`constructor.md`](constructor.md)
+
+Este flujo es manual y se ejecuta en la PC Windows despues de `git pull`.  
+No se ejecuta automaticamente desde este repositorio.
+
+Archivos de instalación (Windows):
+
+- `install/installer.iss`
+- `install/install_windows.bat`
+- `install/update_windows.bat`
+- `install/hud_overlay.ico` (icono del instalador)
+
+Bitácora activa:
+
+- [`bitacora.md`](bitacora.md)
+
 ## Uso (Entrypoints)
 
 | Comando | Descripción |
@@ -68,13 +88,16 @@ pip install -r requirements.txt
 | `python main.py` | Menú principal: configurar perfiles, iniciar HUD, training, easteregg |
 | `python configure.py` | Configuración rápida de ventana |
 | `python tournament.py` | Modo torneo (ventana fija) |
+| `python cli.py --help` | CLI unificado (doctor, version, rutas de soporte) |
+| `python doctor.py` | Diagnóstico de entorno y dependencias |
 
 ## Notas técnicas
 
-- Perfiles y bindings se guardan en `json/profiles.json`
+- Perfiles y bindings se guardan en `%APPDATA%\\hud_owerlay\\profiles.json`
 - Los íconos de botones están en `icons/` y se pueden personalizar
 - Si existía `userdata/`, la migración a `json/` se realiza automáticamente al iniciar
 - Variable de entorno `HUD_KEYBOARD_GLOBAL=0`: solo teclado con ventana enfocada (útil si `keyboard` falla o no quieres hook global).
+- Variable de entorno `HUD_SKIP_TKINTER_RUNTIME_CHECK=1`: omite el runtime-check GUI de tkinter en `doctor`.
 - Pruebas mínimas: `python -m unittest discover -s tests`
 
 ## Arquitectura (resumen)

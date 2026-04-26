@@ -16,3 +16,8 @@ from .utils import (
 	show_error_and_exit,
 )
 from .image_file_picker import pick_image_file_with_validation
+from .versioning import (
+	get_project_version,
+	get_installed_version,
+	write_installed_version,
+)

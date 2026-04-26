@@ -3,10 +3,28 @@
 import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-JSON_DIR = os.path.join(BASE_DIR, "json")
+APP_ID = "hud_owerlay"
+
+
+def get_user_data_dir():
+	"""
+	Windows-only: usa %APPDATA%\\hud_owerlay con fallback deterministico.
+	"""
+	base = os.getenv("APPDATA")
+	if not base:
+		userprofile = os.getenv("USERPROFILE")
+		if userprofile:
+			base = os.path.join(userprofile, "AppData", "Roaming")
+		else:
+			base = os.path.expanduser("~")
+	return os.path.join(base, APP_ID)
+
+
+JSON_DIR = get_user_data_dir()
 FONTS_DIR = os.path.join(BASE_DIR, "fonts")
 ICONS_DIR = os.path.join(BASE_DIR, "icons")
 os.makedirs(JSON_DIR, exist_ok=True)
+HUD_VERSION_PATH = os.path.join(JSON_DIR, ".hud_version")
 
 # Ventana
 SCREEN_WIDTH = 375

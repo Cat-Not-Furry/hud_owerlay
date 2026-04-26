@@ -8,6 +8,8 @@ import subprocess
 import tempfile
 import json
 import time
+import argparse
+from datetime import datetime
 
 
 def _debug_menu(msg):
@@ -65,6 +67,8 @@ from config import (
 	EASTEREGG_ENABLE_MULTI_INSTANCE,
 	EASTEREGG_MULTI_INSTANCE_KEY,
 	EASTEREGG_MAX_INSTANCES,
+	APP_ID,
+	JSON_DIR,
 )
 from render import choose_button_format, choose_input_mode, open_profile_config_menu
 from render import draw_hud, load_icons, set_stick_color, set_stick_colors, set_button_colors
@@ -94,6 +98,8 @@ from utils import (
 	set_ui_font_family,
 	track_set_mode,
 	get_last_set_mode_time_ms,
+	get_project_version,
+	get_installed_version,
 )
 from maps.input_reader import poll_pygame_keyboard_if_needed
 from training import (
@@ -131,6 +137,135 @@ APP_WINDOW_WIDTH = max(SCREEN_WIDTH, MENU_WIDTH, 460)
 APP_WINDOW_HEIGHT = max(SCREEN_HEIGHT, MENU_HEIGHT, 320)
 
 _current_window_mode = "floating_hint"
+
+
+def _now_str():
+	return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def get_temp_reset_log_path():
+	return os.path.join(tempfile.gettempdir(), f"{APP_ID}_reset.log")
+
+
+def _safe_write_log(base_path, message):
+	try:
+		logs_dir = os.path.join(base_path, "logs")
+		os.makedirs(logs_dir, exist_ok=True)
+		log_file = os.path.join(logs_dir, "reset.log")
+		with open(log_file, "a", encoding="utf-8") as handle:
+			handle.write(message + "\n")
+	except Exception:
+		pass
+
+
+def _safe_write_temp_log(message):
+	try:
+		with open(get_temp_reset_log_path(), "a", encoding="utf-8") as handle:
+			handle.write(message + "\n")
+	except Exception:
+		pass
+
+
+def _backup_and_clear_data():
+	base = JSON_DIR
+	if not os.path.exists(base):
+		msg = f"[{_now_str()}][reset] Solicitud de reset sin datos existentes."
+		print(msg)
+		_safe_write_temp_log(msg)
+		return
+
+	ts = int(time.time())
+	backup = f"{base}_backup_{ts}"
+	counter = 1
+	while os.path.exists(backup):
+		backup = f"{base}_backup_{ts}_{counter}"
+		counter += 1
+
+	try:
+		os.rename(base, backup)
+		msg = f"[{_now_str()}][reset] Backup creado en: {backup}"
+		print(msg)
+		_safe_write_log(backup, msg)
+		_safe_write_log(JSON_DIR, msg)
+	except Exception as err:
+		error_message = f"[{_now_str()}][reset][ERROR] Fallo en reset: {type(err).__name__}: {repr(err)}"
+		print(error_message)
+		if os.path.exists(base):
+			_safe_write_log(base, error_message)
+		if os.path.exists(backup):
+			_safe_write_log(backup, error_message)
+		_safe_write_temp_log(error_message)
+
+
+def _confirm_reset_interactive():
+	if sys.stdin and sys.stdin.isatty():
+		print("Deseas eliminar datos de usuario? (se creara backup) [y/N]: ", end="")
+		return input().strip().lower() == "y"
+	try:
+		import tkinter as tk
+		from tkinter import messagebox
+
+		root = tk.Tk()
+		root.withdraw()
+		result = messagebox.askyesno(
+			"HUD Owerlay",
+			"Deseas eliminar datos de usuario?\nSe creara un backup.",
+		)
+		root.destroy()
+		return result
+	except Exception:
+		print("No se pudo mostrar confirmacion. Ejecuta desde terminal.")
+		return False
+
+
+def _build_worker_command():
+	if getattr(sys, "frozen", False):
+		return [sys.executable, "--do-reset-data", "--no-ui"]
+	return [sys.executable, sys.argv[0], "--do-reset-data", "--no-ui"]
+
+
+def _handle_reset_interactive():
+	if not _confirm_reset_interactive():
+		print("Cancelado.")
+		return True
+	subprocess.Popen(_build_worker_command())
+	print("Reset en progreso... la aplicacion se cerrara.")
+	sys.exit(0)
+
+
+def _parse_early_args(argv):
+	parser = argparse.ArgumentParser(add_help=False)
+	parser.add_argument("--show-reset-log", action="store_true")
+	parser.add_argument("--reset-data", action="store_true")
+	parser.add_argument("--do-reset-data", action="store_true")
+	parser.add_argument("--no-ui", action="store_true")
+	parser.add_argument("--version", action="store_true")
+	parser.add_argument("--doctor", action="store_true")
+	return parser.parse_known_args(argv[1:])[0]
+
+
+def _run_doctor():
+	doctor_path = os.path.join(os.path.dirname(__file__), "doctor.py")
+	return subprocess.call([sys.executable, doctor_path]) == 0
+
+
+def _early_cli(argv):
+	args = _parse_early_args(argv)
+	if args.show_reset_log:
+		print(get_temp_reset_log_path())
+		return True
+	if args.reset_data:
+		return _handle_reset_interactive()
+	if args.do_reset_data:
+		_backup_and_clear_data()
+		return True
+	if args.version:
+		print(f"project={get_project_version()} installed={get_installed_version()}")
+		return True
+	if args.doctor:
+		_run_doctor()
+		return True
+	return False
 
 
 def _set_window_size(width, height, title):
@@ -1063,6 +1198,8 @@ _STATE_HANDLERS = {
 
 def main():
 	global _current_window_mode
+	if _early_cli(sys.argv):
+		sys.exit(0)
 	pygame.init()
 	os.environ["SDL_VIDEO_WINDOW_POS"] = "100,100"
 	_current_window_mode = "floating_hint"
